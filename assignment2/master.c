@@ -4,6 +4,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/file.h>
 
 #define N_DATA_LINES 100
 #define MAX_DATA_VAL 100
@@ -36,19 +37,23 @@ void create_data_file(char *filename)
  *      filename: Name of results file to read. Should contain a single floating
  *      point number
  * Waits for the file to exist if it does not already
+ * Also removes the results file
  * Returns the floating point number in the file
  */
 float read_results_file(char * filename)
 {
-    FILE * file == NULL;
+    FILE * file = NULL;
     float result;
 
     while (file == NULL) {
         file = fopen(filename, "r");
+        printf("Could not open %s for reading: %s\n", filename, strerror(errno));
+        usleep(1);
     }
     fscanf(file, "%f", &result);
 
     fclose(file);
+    remove(filename);
     return result;
 }
 
@@ -61,7 +66,7 @@ void create_slave_process(char *arg) {
 
 int main(int argc, char **argv)
 {
-    int i;
+    int i = 0;
 
     create_slave_process("A");
     create_slave_process("B");
@@ -70,15 +75,18 @@ int main(int argc, char **argv)
     remove("B.dat");
     remove("A_results.dat");
     remove("B_results.dat");
-    
-    create_data_file("tempA.dat");
-    create_data_file("tempB.dat");
 
-    rename("tempA.dat", "A.dat");
-    rename("tempB.dat", "B.dat");
+    while(1) {
+        create_data_file("tempA.dat");
+        create_data_file("tempB.dat");
 
-    float A_result = read_results_file("A_results.dat");
-    float B_result = read_results_file("B_results.dat");
+        rename("tempA.dat", "A.dat");
+        rename("tempB.dat", "B.dat");
 
-    printf("%d\t%f\t%f", i, A_result, B_result);
+        float A_result = read_results_file("A_results.dat");
+        float B_result = read_results_file("B_results.dat");
+
+        printf("%d\t%f\t%f\n", i, A_result, B_result);
+        i++;
+   }
 }

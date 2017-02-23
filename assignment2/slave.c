@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/file.h>
 
 
 /* sum_lines_in_file
@@ -24,6 +25,8 @@ float sum_lines_in_file(char *filename)
 
     while (file == NULL) {
         file = fopen(new_filename, "r");
+        printf("Could not open %s for reading: %s\n", new_filename, strerror(errno));
+        usleep(1);
     }
 
     while (EOF != fscanf(file, "%f", &cur_num)) {
@@ -48,11 +51,13 @@ void create_results_file(char *filename, float result)
    
     // create results file
     char new_filename[256] = "";
+    char temp_filename[256] = "";
 
     strcat(new_filename, filename);
     strcat(new_filename, "_results.dat");
+    strcat(temp_filename, "_temp_results.dat");
 
-    file = fopen(new_filename, "w");
+    file = fopen(temp_filename, "w");
     if (file == NULL) {
         printf("Could not open %s for writing: %s", new_filename, strerror(errno));
         exit(-1);
@@ -60,6 +65,7 @@ void create_results_file(char *filename, float result)
 
     fprintf(file, "%f", result);
     fclose(file);
+    rename(temp_filename, new_filename);
 }
 
 int main(int argc, char **argv)
