@@ -19,6 +19,7 @@ void create_data_file(char *filename)
     FILE *file;
     
     file = fopen(filename, "w");
+    flock(fileno(file), LOCK_EX);
     if (file == NULL) {
         printf("Could not open %s for writing: %s", filename, strerror(errno));
         exit(-1);
@@ -29,6 +30,7 @@ void create_data_file(char *filename)
         float random = (float) rand() / (float) (RAND_MAX/MAX_DATA_VAL);
         fprintf(file, "%f\n", random);
     }
+    flock(fileno(file), LOCK_UN);
     fclose(file);
 }
 
@@ -47,13 +49,12 @@ float read_results_file(char * filename)
 
     while (file == NULL) {
         file = fopen(filename, "r");
-        printf("Could not open %s for reading: %s\n", filename, strerror(errno));
-        usleep(1);
     }
+    flock(fileno(file), LOCK_EX);
     fscanf(file, "%f", &result);
 
+    flock(fileno(file), LOCK_UN);
     fclose(file);
-    remove(filename);
     return result;
 }
 

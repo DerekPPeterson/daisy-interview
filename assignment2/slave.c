@@ -25,14 +25,16 @@ float sum_lines_in_file(char *filename)
 
     while (file == NULL) {
         file = fopen(new_filename, "r");
-        printf("Could not open %s for reading: %s\n", new_filename, strerror(errno));
+        //printf("Could not open %s for reading: %s\n", new_filename, strerror(errno));
         usleep(1);
     }
+    flock(fileno(file), LOCK_EX);
 
     while (EOF != fscanf(file, "%f", &cur_num)) {
         sum += cur_num;
     }
 
+    flock(fileno(file), LOCK_UN);
     fclose(file);
     remove(new_filename);
 
@@ -58,12 +60,14 @@ void create_results_file(char *filename, float result)
     strcat(temp_filename, "_temp_results.dat");
 
     file = fopen(temp_filename, "w");
+    flock(fileno(file), LOCK_EX);
     if (file == NULL) {
         printf("Could not open %s for writing: %s", new_filename, strerror(errno));
         exit(-1);
     }
 
     fprintf(file, "%f", result);
+    flock(fileno(file), LOCK_UN);
     fclose(file);
     rename(temp_filename, new_filename);
 }
