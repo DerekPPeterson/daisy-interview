@@ -5,6 +5,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/file.h>
+#include <fcntl.h>
+#include <semaphore.h>
 
 #define N_DATA_LINES 100
 #define MAX_DATA_VAL 100
@@ -14,12 +16,12 @@
  *      filename: filename to which N_DATA_LINES of random floating point 
  *      numbers between 0 and MAX_DATA_VAL will be written
  */
-void create_data_file(char *filename) 
+void create_data_file(char *filename, sem_t *sem) 
 {
     FILE *file;
     
+    sem_wait(sem);
     file = fopen(filename, "w");
-    flock(fileno(file), LOCK_EX);
     if (file == NULL) {
         printf("Could not open %s for writing: %s", filename, strerror(errno));
         exit(-1);
@@ -30,8 +32,8 @@ void create_data_file(char *filename)
         float random = (float) rand() / (float) (RAND_MAX/MAX_DATA_VAL);
         fprintf(file, "%f\n", random);
     }
-    flock(fileno(file), LOCK_UN);
     fclose(file);
+    sem_post(sem);
 }
 
 /* read_results_file
@@ -42,7 +44,7 @@ void create_data_file(char *filename)
  * Also removes the results file
  * Returns the floating point number in the file
  */
-float read_results_file(char * filename)
+float read_results_file(char * filename, sem_t *sem)
 {
     FILE * file = NULL;
     float result;
@@ -50,42 +52,54 @@ float read_results_file(char * filename)
     while (file == NULL) {
         file = fopen(filename, "r");
     }
-    flock(fileno(file), LOCK_EX);
+    sem_wait(sem);
     fscanf(file, "%f", &result);
 
-    flock(fileno(file), LOCK_UN);
     fclose(file);
+    remove(filename);
+    sem_post(sem);
+
     return result;
 }
 
 void create_slave_process(char *arg) {
+
     char *argv[] = {"./slave", arg, NULL};
     if (fork() == 0) {
         execv("./slave", argv);
     }
 }
 
+
 int main(int argc, char **argv)
 {
     int i = 0;
-
-    create_slave_process("A");
-    create_slave_process("B");
 
     remove("A.dat");
     remove("B.dat");
     remove("A_results.dat");
     remove("B_results.dat");
 
+    sem_unlink("/slaveA");
+    sem_unlink("/slaveB");
+    sem_t *semA = sem_open("/slaveA", O_CREAT, 0644, 1);
+    sem_t *semB = sem_open("/slaveB", O_CREAT, 0644, 1);
+
+    if (semA == SEM_FAILED || semB == SEM_FAILED) {
+        printf("Failed to open semaphore\n");
+        exit(-1);
+    }
+
+    create_slave_process("A");
+    create_slave_process("B");
+
     while(1) {
-        create_data_file("tempA.dat");
-        create_data_file("tempB.dat");
 
-        rename("tempA.dat", "A.dat");
-        rename("tempB.dat", "B.dat");
+        create_data_file("A.dat", semA);
+        create_data_file("B.dat", semB);
 
-        float A_result = read_results_file("A_results.dat");
-        float B_result = read_results_file("B_results.dat");
+        float A_result = read_results_file("A_results.dat", semA);
+        float B_result = read_results_file("B_results.dat", semB);
 
         printf("%d\t%f\t%f\n", i, A_result, B_result);
         i++;
