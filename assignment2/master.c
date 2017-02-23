@@ -15,6 +15,7 @@
  * args:
  *      filename: filename to which N_DATA_LINES of random floating point 
  *      numbers between 0 and MAX_DATA_VAL will be written
+ *      sem: semaphore to wait on before opening file for write
  */
 void create_data_file(char *filename, sem_t *sem) 
 {
@@ -40,6 +41,8 @@ void create_data_file(char *filename, sem_t *sem)
  * args:
  *      filename: Name of results file to read. Should contain a single floating
  *      point number
+ *      sem: semaphore to wait on after we discover file exists, but before 
+ *      reading to make sure that the slave is finished writing
  * Waits for the file to exist if it does not already
  * Also removes the results file
  * Returns the floating point number in the file
@@ -62,6 +65,11 @@ float read_results_file(char * filename, sem_t *sem)
     return result;
 }
 
+/* create_slave_process
+ * args:
+ *      First argument that will be passed to the slave process
+ * Fork/execs to create a slave process
+ */
 void create_slave_process(char *arg) {
 
     char *argv[] = {"./slave", arg, NULL};
@@ -73,18 +81,20 @@ void create_slave_process(char *arg) {
 
 int main(int argc, char **argv)
 {
+    // Loop counter
     int i = 0;
 
+    // Remove data files before starting
     remove("A.dat");
     remove("B.dat");
     remove("A_results.dat");
     remove("B_results.dat");
 
+    // Reinitialize semaphores used to communicate with slave processes
     sem_unlink("/slaveA");
     sem_unlink("/slaveB");
     sem_t *semA = sem_open("/slaveA", O_CREAT, 0644, 1);
     sem_t *semB = sem_open("/slaveB", O_CREAT, 0644, 1);
-
     if (semA == SEM_FAILED || semB == SEM_FAILED) {
         printf("Failed to open semaphore\n");
         exit(-1);
@@ -93,8 +103,8 @@ int main(int argc, char **argv)
     create_slave_process("A");
     create_slave_process("B");
 
+    // Main data procesing loop
     while(1) {
-
         create_data_file("A.dat", semA);
         create_data_file("B.dat", semB);
 
