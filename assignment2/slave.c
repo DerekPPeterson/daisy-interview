@@ -9,7 +9,8 @@
  *      filename: Name of a file (without a .dat extension) that contains a list
  *      of floating point numbers, one per line
  * Waits for filename to exist if it does not exist
- * Returns the sum of all the numbers in filenam
+ * Deletes file after reading
+ * Returns the sum of all the numbers in filename
  */
 float sum_lines_in_file(char *filename)
 {
@@ -30,6 +31,8 @@ float sum_lines_in_file(char *filename)
     }
 
     fclose(file);
+    remove(new_filename);
+
     return sum;
 }
 
@@ -42,7 +45,8 @@ float sum_lines_in_file(char *filename)
 void create_results_file(char *filename, float result) 
 {
     FILE *file;
-    
+   
+    // create results file
     char new_filename[256] = "";
 
     strcat(new_filename, filename);
@@ -61,6 +65,8 @@ void create_results_file(char *filename, float result)
 int main(int argc, char **argv)
 {
     char *filename = argv[1];
+    printf("Slave %s started\n", filename);
+    fflush(stdout);
 
     while (1) {
         float sum = sum_lines_in_file(filename); 
