@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <time.h>
 
 #define N_DATA_LINES 100
 #define MAX_DATA_VAL 100
@@ -81,6 +82,8 @@ int main(int argc, char **argv)
 {
     // Loop counter
     int i = 0;
+
+    srand(time(NULL));
 
     // Remove data files before starting
     remove("A.dat");
